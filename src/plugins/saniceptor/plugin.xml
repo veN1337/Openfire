@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Plugin configuration for the saniceptor plugin.
+-->
+<plugin>
+    <class>de.saniceptor.SaniceptorPlugin</class>
+    <name>Saniceptor</name>
+    <description>Intercepts messages.</description>
+    <author>Nils und Sascha</author>
+    <version>0.0.1</version>
+    <date>11/03/2015</date>
+    <url>http://www.igniterealtime.org</url>
+    <minServerVersion>3.9.0</minServerVersion>
+</plugin>
