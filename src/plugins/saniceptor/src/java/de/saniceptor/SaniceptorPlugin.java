@@ -22,15 +22,20 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor {
 	@Override
 	public void interceptPacket(Packet packet, Session session,	boolean incoming, boolean processed) throws PacketRejectedException {
 //		System.out.println("executing interceptPacket");
-		if (processed || incoming) {
+		if (processed || !incoming) {
 			return;
 		} else if (packet instanceof Message) {
 			Message message = (Message) packet;
-			if(message.getType() == Message.Type.chat && message.getBody() != null) {
-				System.out.println(message.getFrom() + " -> " + message.getTo() + ": " + message.getBody());
-				message.setBody(message.getBody() + " appended");
-				processed = true;
+			if(message.getType() == Message.Type.chat && message.getBody().startsWith("?OTR")) {
+				PacketRejectedException ex = new PacketRejectedException();
+				ex.setRejectionMessage("SERVER MESSAGE: OTR temporarily disabled!");
+				throw ex;
 			}
+//			if(message.getType() == Message.Type.chat && message.getBody() != null) {
+//				System.out.println(message.getFrom() + " -> " + message.getTo() + ": " + message.getBody());
+//				message.setBody(message.getBody() + " appended");
+//				processed = true;
+//			}
 		}
 	}
 
