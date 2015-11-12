@@ -38,6 +38,9 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 	private ComponentManager componentManager;
 	
 	private Message newMes;
+	
+	private DummyOtrEngineHost host;
+	private SessionImpl usServer;
 
 	public SaniceptorPlugin() {
 		interceptorManager = InterceptorManager.getInstance();
@@ -90,25 +93,22 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 	@SuppressWarnings("finally")
 	private void doOTRStuff(Message message) throws PacketRejectedException {
 		
-		DummyOtrEngineHost host;
-		SessionImpl usServer;
-		
 		JID From = message.getFrom();
 		JID To = message.getTo();
 		String protocoll = "prpl-jabber";
-
-		SessionID sesHoCl = new SessionID(To.toBareJID(), From.toBareJID(), protocoll);
-				
-		host = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
-				| OtrPolicy.ERROR_START_AKE));
 		
-		usServer = new SessionImpl(sesHoCl, host);
+		if(usServer == null || host == null) {
+			SessionID sesHoCl = new SessionID(To.toBareJID(), From.toBareJID(), protocoll);
+			
+			host = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
+					| OtrPolicy.ERROR_START_AKE));
+			usServer = new SessionImpl(sesHoCl, host);
+		}
 		
 		//System.out.println(message.getBody());
 		
 		try {
-			usServer.transformReceiving(message.getBody());
-			usServer.transformReceiving(message.getBody());
+			System.out.println("received: " + message.getBody());
 			usServer.transformReceiving(message.getBody());
 			System.out.println(host.lastInjectedMessage);
 			newMes = new Message();
@@ -118,13 +118,15 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 			newMes.setTo(From);
 			componentManager.sendPacket(this, newMes);
 			
-			System.out.println(newMes);
+			//System.out.println(newMes);
 			System.out.println("SessionStatus: "+ usServer.getSessionStatus().toString());
-			System.out.println("PubKey: "+ usServer.getRemotePublicKey());
+			//System.out.println("PubKey: "+ usServer.getRemotePublicKey());
 		} catch (OtrException e1) {
 			e1.printStackTrace();
 		} catch (ComponentException e) {
 			e.printStackTrace();
+		} catch (Exception ee) {
+			ee.printStackTrace();
 		} finally {
 			throw new PacketRejectedException();
 		}
