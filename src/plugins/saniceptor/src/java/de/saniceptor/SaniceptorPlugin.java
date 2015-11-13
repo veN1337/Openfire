@@ -109,8 +109,8 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 		
 		try {
 			System.out.println("received: " + message.getBody());
-			usServer.transformReceiving(message.getBody());
-			System.out.println(host.lastInjectedMessage);
+			System.out.println("cleartext: " + usServer.transformReceiving(message.getBody()));
+			//System.out.println(host.lastInjectedMessage);
 			newMes = new Message();
 			newMes.setType(Message.Type.chat);
 			newMes.setBody(host.lastInjectedMessage);
@@ -121,6 +121,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 			//System.out.println(newMes);
 			System.out.println("SessionStatus: "+ usServer.getSessionStatus().toString());
 			//System.out.println("PubKey: "+ usServer.getRemotePublicKey());
+
 		} catch (OtrException e1) {
 			e1.printStackTrace();
 		} catch (ComponentException e) {
