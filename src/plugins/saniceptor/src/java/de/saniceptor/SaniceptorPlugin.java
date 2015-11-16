@@ -118,23 +118,30 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 		
 		try {
 			System.out.println("received: " + message.getBody());
+			
 			if (from.toBareJID().equals(sessImplAC.getSessionID().getAccountID())) {
-				System.out.println("cleartext: " + sessImplAC.transformReceiving(message.getBody()));
-				newMes = new Message();
-				newMes.setType(Message.Type.chat);
-				newMes.setBody(hostA.lastInjectedMessage);
-				newMes.setFrom(to);
-				newMes.setTo(from);
-				componentManager.sendPacket(this, newMes);
 				
-				if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
+				if(!sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
+					
+					sessImplAC.transformReceiving(message.getBody());
+					newMes = new Message();
+					newMes.setType(Message.Type.chat);
+					newMes.setBody(hostA.lastInjectedMessage);
+					newMes.setFrom(to);
+					newMes.setTo(from);
+					componentManager.sendPacket(this, newMes);
+					
+				}
+				
+				else if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED) ) {
 					String[] msg = sessImplCB.transformSending(sessImplAC.transformReceiving(message.getBody()));
 					for (String msgPart : msg) {
-						Message newMesResp = new Message();
-						newMesResp.setType(Message.Type.chat);
-						newMesResp.setBody(msgPart);
-						newMesResp.setFrom(from);
-						newMesResp.setTo(to);
+						newMes = new Message();
+						newMes.setType(Message.Type.chat);
+						newMes.setBody(msgPart);
+						newMes.setFrom(from);
+						newMes.setTo(to);
+						System.out.println("forwarding");
 						componentManager.sendPacket(this, newMes);
 					}
 				}
@@ -142,22 +149,23 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 				
 				
 			} else if (from.toBareJID().equals(sessImplCB.getSessionID().getAccountID())) {
-				System.out.println("cleartext: " + sessImplCB.transformReceiving(message.getBody()));
-				newMes = new Message();
-				newMes.setType(Message.Type.chat);
-				newMes.setBody(hostB.lastInjectedMessage);
-				newMes.setFrom(to);
-				newMes.setTo(from);
-				componentManager.sendPacket(this, newMes);
-				
-				if (sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
-					String[] msg = sessImplCB.transformSending(sessImplCB.transformReceiving(message.getBody()));
+				if(!sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
+					sessImplCB.transformReceiving(message.getBody());
+					newMes = new Message();
+					newMes.setType(Message.Type.chat);
+					newMes.setBody(hostB.lastInjectedMessage);
+					newMes.setFrom(to);
+					newMes.setTo(from);
+					componentManager.sendPacket(this, newMes);
+				}
+				else if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED) ) {
+					String[] msg = sessImplAC.transformSending(sessImplCB.transformReceiving(message.getBody()));
 					for (String msgPart : msg) {
-						Message newMesResp = new Message();
-						newMesResp.setType(Message.Type.chat);
-						newMesResp.setBody(msgPart);
-						newMesResp.setFrom(from);
-						newMesResp.setTo(to);
+						newMes = new Message();
+						newMes.setType(Message.Type.chat);
+						newMes.setBody(msgPart);
+						newMes.setFrom(from);
+						newMes.setTo(to);
 						componentManager.sendPacket(this, newMes);
 					}
 				}
