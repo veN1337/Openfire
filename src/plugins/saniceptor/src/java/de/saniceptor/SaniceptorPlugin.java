@@ -30,6 +30,7 @@ import net.java.otr4j.session.FragmenterInstructions;
 import net.java.otr4j.session.InstanceTag;
 import net.java.otr4j.session.SessionID;
 import net.java.otr4j.session.SessionImpl;
+import net.java.otr4j.session.SessionStatus;
 
 public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 
@@ -101,8 +102,8 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 		String protocoll = "prpl-jabber";
 		
 		if(sessImplAC == null || hostA == null) {
-			SessionID sessionAC = new SessionID(to.toBareJID(), from.toBareJID(), protocoll);
-			SessionID sessionCB = new SessionID(from.toBareJID(), to.toBareJID(), protocoll);
+			SessionID sessionCB = new SessionID(to.toBareJID(), from.toBareJID(), protocoll);
+			SessionID sessionAC = new SessionID(from.toBareJID(), to.toBareJID(), protocoll);
 			
 			hostB = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
 					| OtrPolicy.ERROR_START_AKE));
@@ -125,6 +126,21 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 				newMes.setFrom(to);
 				newMes.setTo(from);
 				componentManager.sendPacket(this, newMes);
+				
+				if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
+					String[] msg = sessImplCB.transformSending(sessImplAC.transformReceiving(message.getBody()));
+					for (String msgPart : msg) {
+						Message newMesResp = new Message();
+						newMesResp.setType(Message.Type.chat);
+						newMesResp.setBody(msgPart);
+						newMesResp.setFrom(from);
+						newMesResp.setTo(to);
+						componentManager.sendPacket(this, newMes);
+					}
+				}
+				
+				
+				
 			} else if (from.toBareJID().equals(sessImplCB.getSessionID().getAccountID())) {
 				System.out.println("cleartext: " + sessImplCB.transformReceiving(message.getBody()));
 				newMes = new Message();
@@ -133,20 +149,31 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 				newMes.setFrom(to);
 				newMes.setTo(from);
 				componentManager.sendPacket(this, newMes);
+				
+				if (sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
+					String[] msg = sessImplCB.transformSending(sessImplCB.transformReceiving(message.getBody()));
+					for (String msgPart : msg) {
+						Message newMesResp = new Message();
+						newMesResp.setType(Message.Type.chat);
+						newMesResp.setBody(msgPart);
+						newMesResp.setFrom(from);
+						newMesResp.setTo(to);
+						componentManager.sendPacket(this, newMes);
+					}
+				}
 			}
 			
 			//System.out.println(host.lastInjectedMessage);
 			
 					
 			
-			if (sessImplAC.getSessionStatus().toString().equals("ENCRYPTED") && var) {
+			if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && var) {
 				var = false;
 				Message newMes2 = new Message();
 				newMes2.setType(Message.Type.chat);
 				newMes2.setBody("<p>?OTRv23?\n" + 				"<span style=\"font-weight: bold;\">Bob@Wonderland/</span> has requested an <a href=\"http://otr.cypherpunks.ca/\">Off-the-Record private conversation</a>. However, you do not have a plugin to support that.\n" + 				"See <a href=\"http://otr.cypherpunks.ca/\">http://otr.cypherpunks.ca/</a> for more information.</p>");
 				newMes2.setFrom(from);
 				newMes2.setTo(to);
-				System.out.println("mes2" + newMes2);;
 				componentManager.sendPacket(this, newMes2);
 //				sessImplCB.startSession();
 //				System.out.println(hostB.lastInjectedMessage);
