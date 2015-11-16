@@ -39,8 +39,11 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 	
 	private Message newMes;
 	
-	private DummyOtrEngineHost host;
-	private SessionImpl usServer;
+	private DummyOtrEngineHost hostA;
+	private DummyOtrEngineHost hostB;
+	private SessionImpl sessImplAC;
+	private SessionImpl sessImplCB;
+	private boolean var = true;
 
 	public SaniceptorPlugin() {
 		interceptorManager = InterceptorManager.getInstance();
@@ -93,33 +96,64 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 	@SuppressWarnings("finally")
 	private void doOTRStuff(Message message) throws PacketRejectedException {
 		
-		JID From = message.getFrom();
-		JID To = message.getTo();
+		JID from = message.getFrom();
+		JID to = message.getTo();
 		String protocoll = "prpl-jabber";
 		
-		if(usServer == null || host == null) {
-			SessionID sesHoCl = new SessionID(To.toBareJID(), From.toBareJID(), protocoll);
+		if(sessImplAC == null || hostA == null) {
+			SessionID sessionAC = new SessionID(to.toBareJID(), from.toBareJID(), protocoll);
+			SessionID sessionCB = new SessionID(from.toBareJID(), to.toBareJID(), protocoll);
 			
-			host = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
+			hostB = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
 					| OtrPolicy.ERROR_START_AKE));
-			usServer = new SessionImpl(sesHoCl, host);
+			hostA = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3
+					| OtrPolicy.ERROR_START_AKE));
+			sessImplAC = new SessionImpl(sessionAC, hostA);
+			sessImplCB = new SessionImpl(sessionCB, hostB);
+			
 		}
 		
 		//System.out.println(message.getBody());
 		
 		try {
 			System.out.println("received: " + message.getBody());
-			System.out.println("cleartext: " + usServer.transformReceiving(message.getBody()));
+			if (from.toBareJID().equals(sessImplAC.getSessionID().getAccountID())) {
+				System.out.println("cleartext: " + sessImplAC.transformReceiving(message.getBody()));
+				newMes = new Message();
+				newMes.setType(Message.Type.chat);
+				newMes.setBody(hostA.lastInjectedMessage);
+				newMes.setFrom(to);
+				newMes.setTo(from);
+				componentManager.sendPacket(this, newMes);
+			} else if (from.toBareJID().equals(sessImplCB.getSessionID().getAccountID())) {
+				System.out.println("cleartext: " + sessImplCB.transformReceiving(message.getBody()));
+				newMes = new Message();
+				newMes.setType(Message.Type.chat);
+				newMes.setBody(hostB.lastInjectedMessage);
+				newMes.setFrom(to);
+				newMes.setTo(from);
+				componentManager.sendPacket(this, newMes);
+			}
+			
 			//System.out.println(host.lastInjectedMessage);
-			newMes = new Message();
-			newMes.setType(Message.Type.chat);
-			newMes.setBody(host.lastInjectedMessage);
-			newMes.setFrom(To);
-			newMes.setTo(From);
-			componentManager.sendPacket(this, newMes);
+			
+					
+			
+			if (sessImplAC.getSessionStatus().toString().equals("ENCRYPTED") && var) {
+				var = false;
+				Message newMes2 = new Message();
+				newMes2.setType(Message.Type.chat);
+				newMes2.setBody("<p>?OTRv23?\n" + 				"<span style=\"font-weight: bold;\">Bob@Wonderland/</span> has requested an <a href=\"http://otr.cypherpunks.ca/\">Off-the-Record private conversation</a>. However, you do not have a plugin to support that.\n" + 				"See <a href=\"http://otr.cypherpunks.ca/\">http://otr.cypherpunks.ca/</a> for more information.</p>");
+				newMes2.setFrom(from);
+				newMes2.setTo(to);
+				System.out.println("mes2" + newMes2);;
+				componentManager.sendPacket(this, newMes2);
+//				sessImplCB.startSession();
+//				System.out.println(hostB.lastInjectedMessage);
+			}
 			
 			//System.out.println(newMes);
-			System.out.println("SessionStatus: "+ usServer.getSessionStatus().toString());
+			System.out.println("SessionStatus: "+ sessImplAC.getSessionStatus().toString());
 			//System.out.println("PubKey: "+ usServer.getRemotePublicKey());
 
 		} catch (OtrException e1) {
