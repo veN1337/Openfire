@@ -64,31 +64,12 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 			}
 			
 			if (message.getType() == Message.Type.chat && message.getBody() != null) {
-				//System.out.println(message.getFrom() + " -> " + message.getTo() + ": " + message.getBody() + " inc:" + incoming);
-				/*newMes = message.createCopy();
-				newMes.setFrom(message.getTo());
-				newMes.setTo(message.getFrom());
-				try {
-					System.out.println("Sending: " + newMes.getBody());
-					componentManager.sendPacket(this, newMes);
-					throw new PacketRejectedException();
-				} catch (ComponentException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}*/
 				
 				if (message.getBody().startsWith("?OTR")) {
 					doOTRStuff(message);
-					throw new PacketRejectedException("Bla");
+					throw new PacketRejectedException();
 				}
-				
-				//System.out.println(message.getBody());
-				//System.out.println(message.getBody() == "MachOTR");
-				
-				if (message.getBody().startsWith("MachOTR")) {
-					//doOTRStuff2(message);
-					throw new PacketRejectedException("Bla");
-				}
+
 			}
 
 		}
@@ -102,6 +83,12 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 		String protocoll = "prpl-jabber";
 		
 		if(sessImplAC == null || hostA == null) {
+			
+			System.out.println("Starte OTR Sitzung zwischen " + from.toBareJID() + " und Server");
+			System.out.println("Starte OTR Sitzung zwischen Server und " + to.toBareJID());
+			
+			var = true;
+			
 			SessionID sessionCB = new SessionID(to.toBareJID(), from.toBareJID(), protocoll);
 			SessionID sessionAC = new SessionID(from.toBareJID(), to.toBareJID(), protocoll);
 			
@@ -114,13 +101,12 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 			
 		}
 		
-		//System.out.println(message.getBody());
-		
 		try {
-			System.out.println("received: " + message.getBody());
-			
+
+			// Wenn die Nachricht von A kommt (Client die OTR zuerst angefrage hat)
 			if (from.toBareJID().equals(sessImplAC.getSessionID().getAccountID())) {
 				
+				// Bei noch nicht verschluesselter Session (D-H Austausch)
 				if(!sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
 					
 					sessImplAC.transformReceiving(message.getBody());
@@ -133,22 +119,29 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 					
 				}
 				
+				// Bei verschluesselter Session (Entschluesseln, neu verschluesseln, weiterleiten)
 				else if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED) ) {
 					String[] msg = sessImplCB.transformSending(sessImplAC.transformReceiving(message.getBody()));
-					for (String msgPart : msg) {
-						newMes = new Message();
-						newMes.setType(Message.Type.chat);
-						newMes.setBody(msgPart);
-						newMes.setFrom(from);
-						newMes.setTo(to);
-						System.out.println("forwarding");
-						componentManager.sendPacket(this, newMes);
+					if (sessImplAC.getSessionStatus().equals(SessionStatus.FINISHED)) {
+						//System.out.println("not forwarding because finished");					
+					} else {
+						System.out.println(from.toBareJID() + " -> " + to.toBareJID() + ": " + sessImplAC.transformReceiving(message.getBody()));
+						for (String msgPart : msg) {
+							newMes = new Message();
+							newMes.setType(Message.Type.chat);
+							newMes.setBody(msgPart);
+							newMes.setFrom(from);
+							newMes.setTo(to);
+							componentManager.sendPacket(this, newMes);
+						}
 					}
 				}
 				
 				
-				
+			// Wenn die Nachricht von B kommt
 			} else if (from.toBareJID().equals(sessImplCB.getSessionID().getAccountID())) {
+				
+				// Bei noch nicht verschluesselter Session (D-H Austausch)
 				if(!sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
 					sessImplCB.transformReceiving(message.getBody());
 					newMes = new Message();
@@ -158,38 +151,73 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 					newMes.setTo(from);
 					componentManager.sendPacket(this, newMes);
 				}
+				
+				// Bei verschluesselter Session (Entschluesseln, neu verschluesseln, weiterleiten)
 				else if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && sessImplCB.getSessionStatus().equals(SessionStatus.ENCRYPTED) ) {
 					String[] msg = sessImplAC.transformSending(sessImplCB.transformReceiving(message.getBody()));
-					for (String msgPart : msg) {
-						newMes = new Message();
-						newMes.setType(Message.Type.chat);
-						newMes.setBody(msgPart);
-						newMes.setFrom(from);
-						newMes.setTo(to);
-						componentManager.sendPacket(this, newMes);
+					if (sessImplCB.getSessionStatus().equals(SessionStatus.FINISHED)) {
+						//System.out.println("not forwarding because finished");
+					} else {
+						System.out.println(from.toBareJID() + " -> " + to.toBareJID() + ": " + sessImplCB.transformReceiving(message.getBody()));
+						for (String msgPart : msg) {
+							newMes = new Message();
+							newMes.setType(Message.Type.chat);
+							newMes.setBody(msgPart);
+							newMes.setFrom(from);
+							newMes.setTo(to);
+							componentManager.sendPacket(this, newMes);
+						}
 					}
 				}
 			}
 			
-			//System.out.println(host.lastInjectedMessage);
 			
-					
-			
+			//Wenn A->C erstellt und verschluesselt ist, sende OTR Anfrage an B, aber nur einmal
 			if (sessImplAC.getSessionStatus().equals(SessionStatus.ENCRYPTED) && var) {
 				var = false;
-				Message newMes2 = new Message();
-				newMes2.setType(Message.Type.chat);
-				newMes2.setBody("<p>?OTRv23?\n" + 				"<span style=\"font-weight: bold;\">Bob@Wonderland/</span> has requested an <a href=\"http://otr.cypherpunks.ca/\">Off-the-Record private conversation</a>. However, you do not have a plugin to support that.\n" + 				"See <a href=\"http://otr.cypherpunks.ca/\">http://otr.cypherpunks.ca/</a> for more information.</p>");
-				newMes2.setFrom(from);
-				newMes2.setTo(to);
-				componentManager.sendPacket(this, newMes2);
-//				sessImplCB.startSession();
-//				System.out.println(hostB.lastInjectedMessage);
+				newMes = new Message();
+				newMes.setType(Message.Type.chat);
+				newMes.setBody("<p>?OTRv23?\n" +
+								"<span style=\"font-weight: bold;\">" + from.toBareJID() + "/</span> has requested an " + 
+								"<a href=\"http://otr.cypherpunks.ca/\">Off-the-Record private conversation</a>. " +
+								"However, you do not have a plugin to support that.\n" + 
+								"See <a href=\"http://otr.cypherpunks.ca/\">http://otr.cypherpunks.ca/</a> for more information.</p>");
+				newMes.setFrom(from);
+				newMes.setTo(to);
+				componentManager.sendPacket(this, newMes);
 			}
 			
-			//System.out.println(newMes);
-			System.out.println("SessionStatus: "+ sessImplAC.getSessionStatus().toString());
-			//System.out.println("PubKey: "+ usServer.getRemotePublicKey());
+			// Wenn A die Session beenden will sende diese Info an B
+			if (sessImplAC.getSessionStatus().equals(SessionStatus.FINISHED)) {
+				System.out.println("got a finished session from A, end B");
+				sessImplCB.endSession();
+				newMes = new Message();
+				newMes.setType(Message.Type.chat);
+				newMes.setBody(hostB.lastInjectedMessage);
+				newMes.setFrom(from);
+				newMes.setTo(to);
+				componentManager.sendPacket(this, newMes);
+				
+				sessImplAC = null;
+				hostA = null;
+			}
+			
+			// Wenn B die Session beenden will sende diese Info an A
+			if (sessImplCB.getSessionStatus().equals(SessionStatus.FINISHED)) {
+				System.out.println("got a finished session from B, end A");
+				sessImplAC.endSession();
+				newMes = new Message();
+				newMes.setType(Message.Type.chat);
+				newMes.setBody(hostA.lastInjectedMessage);
+				newMes.setFrom(from);
+				newMes.setTo(to);
+				componentManager.sendPacket(this, newMes);
+				
+				sessImplAC = null;
+				hostA = null;
+			}
+
+			//System.out.println("SessionStatus: "+ sessImplAC.getSessionStatus().toString());
 
 		} catch (OtrException e1) {
 			e1.printStackTrace();
@@ -231,9 +259,8 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 		public void injectMessage(SessionID sessionID, String msg) {
 
 			this.lastInjectedMessage = msg;
-			String msgDisplay = (msg.length() > 10) ? msg.substring(0, 10)
-					+ "..." : msg;
-			System.out.println("IM injects message: " + msgDisplay);
+			//String msgDisplay = (msg.length() > 10) ? msg.substring(0, 10) + "..." : msg;
+			//System.out.println("IM injects message: " + msgDisplay);
 		}
 
 		public void smpError(SessionID sessionID, int tlvType, boolean cheated)
