@@ -27,6 +27,10 @@ public class SessionData {
 		host = new DummyOtrEngineHost(new OtrPolicyImpl(OtrPolicy.ALLOW_V2 | OtrPolicy.ALLOW_V3 | OtrPolicy.ERROR_START_AKE));
 		sessImplAC = new SessionImpl(sessionAC, host);
 		sessImplCB = new SessionImpl(sessionCB, host);
+		
+		System.out.println("Beginne OTR Session zwischen " + from.toBareJID() + " und Server");
+		System.out.println("Beginne OTR Session zwischen Server und " + to.toBareJID());
+		
 	}
 	
 	public DummyOtrEngineHost getHost() {

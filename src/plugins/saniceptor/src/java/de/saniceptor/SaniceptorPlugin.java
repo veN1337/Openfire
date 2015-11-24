@@ -15,23 +15,8 @@ import org.xmpp.component.ComponentManagerFactory;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 import org.xmpp.packet.Packet;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.logging.Logger;
-
-import net.java.otr4j.OtrEngineHost;
 import net.java.otr4j.OtrException;
-import net.java.otr4j.OtrPolicy;
-import net.java.otr4j.OtrPolicyImpl;
-import net.java.otr4j.crypto.OtrCryptoEngineImpl;
-import net.java.otr4j.crypto.OtrCryptoException;
-import net.java.otr4j.session.FragmenterInstructions;
-import net.java.otr4j.session.InstanceTag;
-import net.java.otr4j.session.SessionID;
-import net.java.otr4j.session.SessionImpl;
 import net.java.otr4j.session.SessionStatus;
 
 public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
@@ -71,7 +56,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 
 	@SuppressWarnings("finally")
 	private void doOTRStuff(Message message) throws PacketRejectedException {
-		System.out.println("doOTRStuffYo");
+
 		JID from = message.getFrom();
 		JID to = message.getTo();
 		String key;
@@ -89,10 +74,6 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 			sd = otrSessions.get(key);
 		}
 		
-
-		System.out.println("Starte OTR Sitzung zwischen " + from.toBareJID() + " und Server");
-		System.out.println("Starte OTR Sitzung zwischen Server und " + to.toBareJID());
-
 		try {
 
 			// Wenn die Nachricht von A kommt (Client die OTR zuerst angefrage
@@ -106,7 +87,6 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 					newMes = new Message();
 					newMes.setType(Message.Type.chat);
 					newMes.setBody(sd.getHost().lastInjectedMessage);
-					System.out.println("DEBUG" + sd.getHost().lastInjectedMessage);
 					newMes.setFrom(to);
 					newMes.setTo(from);
 					componentManager.sendPacket(this, newMes);
@@ -119,8 +99,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 						&& sd.getSessImplCB().getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
 					String[] msg = sd.getSessImplCB().transformSending(sd.getSessImplAC().transformReceiving(message.getBody()));
 					if (sd.getSessImplAC().getSessionStatus().equals(SessionStatus.FINISHED)) {
-						// System.out.println("not forwarding because
-						// finished");
+						// System.out.println("not forwarding because finished");
 					} else {
 						System.out.println(from.toBareJID() + " -> " + to.toBareJID() + ": "
 								+ sd.getSessImplAC().transformReceiving(message.getBody()));
@@ -155,8 +134,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 						&& sd.getSessImplCB().getSessionStatus().equals(SessionStatus.ENCRYPTED)) {
 					String[] msg = sd.getSessImplAC().transformSending(sd.getSessImplCB().transformReceiving(message.getBody()));
 					if (sd.getSessImplCB().getSessionStatus().equals(SessionStatus.FINISHED)) {
-						// System.out.println("not forwarding because
-						// finished");
+						// System.out.println("not forwarding because finished");
 					} else {
 						System.out.println(from.toBareJID() + " -> " + to.toBareJID() + ": "
 								+ sd.getSessImplCB().transformReceiving(message.getBody()));
@@ -190,7 +168,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 
 			// Wenn A die Session beenden will sende diese Info an B
 			if (sd.getSessImplAC().getSessionStatus().equals(SessionStatus.FINISHED)) {
-				System.out.println("got a finished session from A, end B");
+				//System.out.println("got a finished session from A, end B");
 				sd.getSessImplCB().endSession();
 				newMes = new Message();
 				newMes.setType(Message.Type.chat);
@@ -201,11 +179,12 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 
 				sd.setSessImplAC(null);
 				sd.setHost(null);
+				otrSessions.remove(key);
 			}
 
 			// Wenn B die Session beenden will sende diese Info an A
 			if (sd.getSessImplCB().getSessionStatus().equals(SessionStatus.FINISHED)) {
-				System.out.println("got a finished session from B, end A");
+				//System.out.println("got a finished session from B, end A");
 				sd.getSessImplAC().endSession();
 				newMes = new Message();
 				newMes.setType(Message.Type.chat);
@@ -214,12 +193,10 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 				newMes.setTo(to);
 				componentManager.sendPacket(this, newMes);
 
-				sd.setSessImplAC(null);
+				sd.setSessImplCB(null);
 				sd.setHost(null);
+				otrSessions.remove(key);
 			}
-
-			// System.out.println("SessionStatus: "+
-			// sessImplAC.getSessionStatus().toString());
 
 		} catch (OtrException e1) {
 			e1.printStackTrace();
