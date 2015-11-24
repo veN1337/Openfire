@@ -38,7 +38,7 @@ public class SaniceptorPlugin implements Plugin, PacketInterceptor, Component {
 
 	private InterceptorManager interceptorManager;
 	private ComponentManager componentManager;
-	private HashMap<String, SessionData> otrSessions;
+	private HashMap<String, SessionData> otrSessions = new HashMap<String, SessionData>();
 	private Message newMes;
 	private SessionData sd;
 
